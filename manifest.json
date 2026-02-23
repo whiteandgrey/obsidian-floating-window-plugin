@@ -5,6 +5,6 @@
   "minAppVersion": "0.15.0",
   "description": "Display selected text in floating windows with the same rendering as the original document.",
   "author": "whiteandgrey",
-  "authorUrl": "https://github.com/whiteandgrey/obsidian-floating-window-plugin",
+  "authorUrl": "https://github.com/whiteandgrey",
   "isDesktopOnly": true
 }
