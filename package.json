@@ -1,0 +1,17 @@
+{
+  "name": "floating-window-plugin",
+  "version": "1.0.0",
+  "description": "Obsidian plugin to display selected text in floating windows",
+  "main": "main.js",
+  "scripts": {
+    "dev": "tsc -watch",
+    "build": "tsc"
+  },
+  "keywords": ["obsidian", "plugin", "floating", "window"],
+  "author": "whiteandgrey",
+  "license": "MIT",
+  "devDependencies": {
+    "obsidian": "^1.4.0",
+    "typescript": "^4.9.0"
+  }
+}
