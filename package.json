@@ -1,5 +1,5 @@
 {
-  "name": "floating-window-plugin",
+  "name": "floating-window",
   "version": "1.0.0",
   "description": "Obsidian plugin to display selected text in floating windows",
   "main": "main.js",
