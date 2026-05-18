@@ -197,8 +197,16 @@ class FloatingWindowPlugin extends obsidian_1.Plugin {
         contentElement.style.width = '100%';
         contentElement.style.height = 'calc(100% - 20px)';
         contentElement.style.overflow = 'auto';
+        // Get source file path for resolving relative paths (e.g., images)
+        let sourcePath = '';
+        if (sourceLeaf && sourceLeaf.view && 'file' in sourceLeaf.view) {
+            const file = sourceLeaf.view.file;
+            if (file) {
+                sourcePath = file.path;
+            }
+        }
         // Render markdown content
-        await this.renderMarkdown(contentElement, text);
+        await this.renderMarkdown(contentElement, text, sourcePath);
         windowElement.appendChild(contentElement);
         document.body.appendChild(windowElement);
         // Calculate optimal window size based on content
@@ -217,6 +225,7 @@ class FloatingWindowPlugin extends obsidian_1.Plugin {
             originalText: text,
             originalSelection: selectionRect || null,
             sourceLeaf: sourceLeaf || null,
+            sourcePath: sourcePath,
             eventListeners: null
         };
         // Add drag functionality
@@ -537,7 +546,7 @@ class FloatingWindowPlugin extends obsidian_1.Plugin {
             }
         }
     }
-    async renderMarkdown(element, markdown) {
+    async renderMarkdown(element, markdown, sourcePath = '') {
         try {
             // Clear existing content
             element.innerHTML = '';
@@ -548,7 +557,12 @@ class FloatingWindowPlugin extends obsidian_1.Plugin {
             contentContainer.style.margin = '0';
             // Use Obsidian's built-in markdown renderer for full compatibility
             // This will render all markdown elements correctly including headings, code blocks, mathjax, etc.
-            await obsidian_1.MarkdownRenderer.renderMarkdown(markdown, contentContainer, '', this);
+            await obsidian_1.MarkdownRenderer.renderMarkdown(markdown, contentContainer, sourcePath, this);
+            // Process internal-embed elements to load images
+            await this.processInternalEmbeds(contentContainer, sourcePath);
+            // Debug
+            console.log('[FloatingWindow] sourcePath:', sourcePath);
+            console.log('[FloatingWindow] rendered HTML:', contentContainer.innerHTML.substring(0, 300));
             // Append the rendered content
             element.appendChild(contentContainer);
         }
@@ -567,6 +581,55 @@ class FloatingWindowPlugin extends obsidian_1.Plugin {
                 // Line breaks
                 .replace(/\n/g, '<br>');
             element.innerHTML = html;
+        }
+    }
+    async processInternalEmbeds(container, sourcePath) {
+        var _a;
+        const embeds = Array.from(container.querySelectorAll('.internal-embed'));
+        console.log('[FloatingWindow] processInternalEmbeds - embeds:', embeds.length, 'sourcePath:', sourcePath);
+        for (const embed of embeds) {
+            const alt = embed.getAttribute('alt');
+            const src = embed.getAttribute('src');
+            const width = embed.getAttribute('width');
+            console.log('[FloatingWindow] embed - alt:', alt, 'src:', src, 'width:', width);
+            if (alt || src) {
+                // Determine the file path - use alt if available, otherwise use src
+                let fileName = alt || src;
+                if (!fileName)
+                    continue;
+                let imagePath = fileName;
+                // Check if it's a simple relative path (just a filename or ./xxx)
+                // or already a full path (contains multiple path segments)
+                const pathSegments = fileName.split('/').filter(s => s.length > 0);
+                const isSimpleRelative = pathSegments.length <= 1 && !fileName.startsWith('./') && !fileName.startsWith('../');
+                if (sourcePath && isSimpleRelative) {
+                    const sourceDir = sourcePath.substring(0, sourcePath.lastIndexOf('/') + 1);
+                    imagePath = sourceDir + fileName;
+                }
+                console.log('[FloatingWindow] imagePath:', imagePath);
+                // Try to get the actual file URL from Obsidian
+                try {
+                    const file = this.app.metadataCache.getFirstLinkpathDest(imagePath, sourcePath || '');
+                    console.log('[FloatingWindow] file:', file);
+                    if (file) {
+                        // Create an img element to display the image
+                        const img = document.createElement('img');
+                        img.src = this.app.vault.getResourcePath(file);
+                        img.alt = alt || '';
+                        // Apply width if specified in markdown (e.g., ![578](path))
+                        if (width) {
+                            img.width = parseInt(width, 10);
+                        }
+                        img.style.maxWidth = width ? `${width}px` : '100%';
+                        img.style.height = 'auto';
+                        // Replace the embed span with the img
+                        (_a = embed.parentNode) === null || _a === void 0 ? void 0 : _a.replaceChild(img, embed);
+                    }
+                }
+                catch (error) {
+                    console.error('[FloatingWindow] Error processing embed:', error);
+                }
+            }
         }
     }
     adjustWindowSize(windowElement, contentElement, text) {
